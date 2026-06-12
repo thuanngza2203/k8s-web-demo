@@ -1,0 +1,379 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Application Alerts
+    folder: Cloud Web K8s Alerts
+    interval: 1m
+    rules:
+      - uid: grafana-high-api-error-rate
+        title: High API Error Rate
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (sum(increase(app_http_errors_total[5m])) / clamp_min(sum(increase(app_http_requests_total[5m])), 1)) * 100
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 10
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: API error rate is above 10 percent
+          description: Check Application Overview and API logs.
+        labels:
+          severity: critical
+          team: backend
+          notify_telegram: "true"
+
+      - uid: grafana-high-api-latency
+        title: High API p95 Latency
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: histogram_quantile(0.95, sum(rate(app_http_request_duration_seconds_bucket[5m])) by (le))
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 2
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: API p95 latency is above 2 seconds
+          description: Use /api/simulate/slow to demonstrate this alert.
+        labels:
+          severity: warning
+          team: backend
+
+      - uid: grafana-api-down
+        title: API Down
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(up{app="api"}) or vector(0)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: API has no healthy scrape targets
+          description: Prometheus cannot scrape API pods.
+        labels:
+          severity: critical
+          team: backend
+          notify_telegram: "true"
+
+  - orgId: 1
+    name: Kubernetes Alerts
+    folder: Cloud Web K8s Alerts
+    interval: 1m
+    rules:
+      - uid: grafana-pod-high-memory
+        title: Pod High Memory
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(container_memory_working_set_bytes{namespace="cloud-web-k8s",pod!=""}) by (pod)
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 300000000
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: Pod RAM usage is above 300MB
+          description: Use /api/simulate/memory?size=100 to demonstrate RAM growth.
+        labels:
+          severity: warning
+          team: platform
+          notify_telegram: "true"
+
+      - uid: grafana-pod-high-cpu
+        title: Pod High CPU
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(container_cpu_usage_seconds_total{namespace="cloud-web-k8s",pod!=""}[5m])) by (pod)
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.8
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: Pod CPU usage is above 0.8 cores
+          description: Use /api/simulate/cpu to demonstrate CPU growth.
+        labels:
+          severity: warning
+          team: platform
+          notify_telegram: "true"
+
+      - uid: grafana-deployment-unavailable
+        title: Deployment Unavailable
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(kube_deployment_spec_replicas{namespace="cloud-web-k8s"} - kube_deployment_status_replicas_available{namespace="cloud-web-k8s"})
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: One or more deployment replicas are unavailable
+          description: Check the Kubernetes Pods dashboard.
+        labels:
+          severity: warning
+          team: platform
+          notify_telegram: "true"
+
+  - orgId: 1
+    name: Database Alerts
+    folder: Cloud Web K8s Alerts
+    interval: 1m
+    rules:
+      - uid: grafana-db-query-failures
+        title: Database Query Failures
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(app_db_queries_total{success="false"}[5m])) or vector(0)
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              type: threshold
+              refId: B
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: API reports failed MySQL queries
+          description: Check Database Overview for query failure rate.
+        labels:
+          severity: warning
+          team: backend

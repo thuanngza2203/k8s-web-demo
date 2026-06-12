@@ -1,0 +1,16 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: telegram-alerts
+    receivers:
+      - uid: ai-alert-webhook
+        type: webhook
+        settings:
+          url: http://alert-ai:8082/grafana-alert
+          httpMethod: POST
+          title: |
+            {{ template "default.title" . }}
+          message: |
+            {{ template "default.message" . }}
+        disableResolveMessage: false

@@ -1,0 +1,104 @@
+{
+  "uid": "cloud-web-k8s-pods",
+  "title": "Kubernetes Pods",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API Available Replicas",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "kube_deployment_status_replicas_available{namespace=\"cloud-web-k8s\",deployment=\"api\"}" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "API Desired Replicas",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "kube_deployment_spec_replicas{namespace=\"cloud-web-k8s\",deployment=\"api\"}" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Restarts In 15m",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"cloud-web-k8s\"}[15m]))" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Running Pods",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(kube_pod_status_phase{namespace=\"cloud-web-k8s\",phase=\"Running\"})" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Pod CPU Usage",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"cloud-web-k8s\",pod!=\"\"}[5m])) by (pod)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "cores" }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Pod RAM Working Set",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=\"cloud-web-k8s\",pod!=\"\"}) by (pod)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Pod RAM Usage Bytes",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(container_memory_usage_bytes{namespace=\"cloud-web-k8s\",pod!=\"\"}) by (pod)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Memory Limits By Pod",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(kube_pod_container_resource_limits{namespace=\"cloud-web-k8s\",resource=\"memory\"}) by (pod)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Pod Phase",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "kube_pod_status_phase{namespace=\"cloud-web-k8s\"}" }
+      ]
+    }
+  ]
+}

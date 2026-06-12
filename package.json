@@ -1,0 +1,19 @@
+{
+  "name": "cloud-web-k8s",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Next.js + Express + MySQL e-commerce demo with Kubernetes monitoring",
+  "workspaces": [
+    "apps/api",
+    "apps/alert-ai",
+    "apps/frontend"
+  ],
+  "scripts": {
+    "api:dev": "npm --workspace apps/api run dev",
+    "alert-ai:dev": "npm --workspace apps/alert-ai run dev",
+    "frontend:dev": "npm --workspace apps/frontend run dev",
+    "api:start": "npm --workspace apps/api start",
+    "alert-ai:start": "npm --workspace apps/alert-ai start",
+    "frontend:start": "npm --workspace apps/frontend start"
+  }
+}

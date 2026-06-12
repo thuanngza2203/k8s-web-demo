@@ -1,0 +1,99 @@
+{
+  "uid": "cloud-web-db-overview",
+  "title": "Database Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "DB Queries / sec",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(app_db_queries_total[5m]))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "DB p95 Latency",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(app_db_query_duration_seconds_bucket[5m])) by (le))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "DB Failures / sec",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(app_db_queries_total{success=\"false\"}[5m])) or vector(0)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "API DB Pool Connections",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(app_db_pool_connections)" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Queries By Operation",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(app_db_queries_total[5m])) by (operation, success)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Queries By Table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(app_db_queries_total[5m])) by (table)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "qps" }, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "DB Query Latency p50 / p95 / p99",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.50, sum(rate(app_db_query_duration_seconds_bucket[5m])) by (le))" },
+        { "refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum(rate(app_db_query_duration_seconds_bucket[5m])) by (le))" },
+        { "refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum(rate(app_db_query_duration_seconds_bucket[5m])) by (le))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "MySQL Pod RAM",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=\"cloud-web-k8s\",pod=~\"mysql-.*\"}) by (pod)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    }
+  ]
+}

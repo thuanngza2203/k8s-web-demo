@@ -1,0 +1,71 @@
+{
+  "uid": "cloud-web-alert-overview",
+  "title": "Alert Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Firing Alerts",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(ALERTS{alertstate=\"firing\"})" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Pending Alerts",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(ALERTS{alertstate=\"pending\"})" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Critical Alerts",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(ALERTS{severity=\"critical\"})" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Alerts By Severity",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(ALERTS) by (severity, alertstate)" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Alert States By Name",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(ALERTS) by (alertname, alertstate)" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Current Alert Samples",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "ALERTS" }
+      ]
+    }
+  ]
+}
+

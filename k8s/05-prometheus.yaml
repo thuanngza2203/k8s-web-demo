@@ -1,0 +1,281 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: cloud-web-k8s
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cloud-web-k8s-prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+  - nonResourceURLs:
+      - /metrics
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cloud-web-k8s-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloud-web-k8s-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: cloud-web-k8s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: cloud-web-k8s
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        project: cloud-web-k8s
+        environment: local-kubernetes
+
+    rule_files:
+      - /etc/prometheus/alert-rules.yml
+
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ['localhost:9090']
+            labels:
+              app: prometheus
+
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets: ['kube-state-metrics:8080']
+            labels:
+              app: kube-state-metrics
+
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - cloud-web-k8s
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_tier]
+            target_label: tier
+
+      - job_name: kubernetes-cadvisor
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+
+  alert-rules.yml: |
+    groups:
+      - name: application
+        interval: 30s
+        rules:
+          - alert: HighAPIErrorRate
+            expr: |
+              (
+                sum(increase(app_http_errors_total[5m]))
+                /
+                clamp_min(sum(increase(app_http_requests_total[5m])), 1)
+              ) * 100 > 10
+            for: 2m
+            labels:
+              severity: critical
+              team: backend
+              notify_telegram: "true"
+            annotations:
+              summary: API error rate is above 10 percent
+              description: The API is returning too many 4xx/5xx responses.
+
+          - alert: HighAPILatencyP95
+            expr: |
+              histogram_quantile(0.95, sum(rate(app_http_request_duration_seconds_bucket[5m])) by (le)) > 2
+            for: 3m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: API p95 latency is above 2 seconds
+              description: Slow API responses are visible in the Application Overview dashboard.
+
+          - alert: APIDown
+            expr: (sum(up{app="api"}) < 1) or absent(up{app="api"})
+            for: 1m
+            labels:
+              severity: critical
+              team: backend
+            annotations:
+              summary: API has no healthy scrape targets
+              description: Prometheus cannot scrape any API pod.
+
+          - alert: FrontendDown
+            expr: (sum(up{app="frontend"}) < 1) or absent(up{app="frontend"})
+            for: 1m
+            labels:
+              severity: critical
+              team: frontend
+            annotations:
+              summary: Frontend has no healthy scrape targets
+              description: Prometheus cannot scrape any frontend pod.
+
+      - name: database
+        interval: 30s
+        rules:
+          - alert: DatabaseQueryFailures
+            expr: (sum(rate(app_db_queries_total{success="false"}[5m])) or vector(0)) > 0
+            for: 2m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: Database query failures detected
+              description: The API reports failed MySQL queries.
+
+      - name: kubernetes
+        interval: 30s
+        rules:
+          - alert: DeploymentUnavailable
+            expr: |
+              kube_deployment_status_replicas_available{namespace="cloud-web-k8s"}
+              <
+              kube_deployment_spec_replicas{namespace="cloud-web-k8s"}
+            for: 2m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: Deployment has unavailable replicas
+              description: A deployment has fewer available replicas than desired.
+
+          - alert: PodHighCPU
+            expr: |
+              sum(rate(container_cpu_usage_seconds_total{namespace="cloud-web-k8s",pod!=""}[5m])) by (pod) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: Pod CPU usage is high
+              description: A pod is using more than 0.8 CPU cores.
+
+          - alert: PodHighMemory
+            expr: |
+              sum(container_memory_working_set_bytes{namespace="cloud-web-k8s",pod!=""}) by (pod) > 300000000
+            for: 3m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: Pod memory usage is high
+              description: A pod is using more than 300MB RAM.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: cloud-web-k8s
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.51.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=7d
+            - --web.enable-lifecycle
+          ports:
+            - name: http
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: cloud-web-k8s
+  labels:
+    app: prometheus
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090

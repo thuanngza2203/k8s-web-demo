@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alert-ai
+  namespace: cloud-web-k8s
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: alert-ai-log-reader
+  namespace: cloud-web-k8s
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources:
+      - pods/log
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alert-ai-log-reader
+  namespace: cloud-web-k8s
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: alert-ai-log-reader
+subjects:
+  - kind: ServiceAccount
+    name: alert-ai
+    namespace: cloud-web-k8s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-ai
+  namespace: cloud-web-k8s
+  labels:
+    app: alert-ai
+spec:
+  selector:
+    app: alert-ai
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-ai
+  namespace: cloud-web-k8s
+  labels:
+    app: alert-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-ai
+  template:
+    metadata:
+      labels:
+        app: alert-ai
+        tier: monitoring
+    spec:
+      serviceAccountName: alert-ai
+      containers:
+        - name: alert-ai
+          image: local/cloud-web-alert-ai:dev
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8082
+          env:
+            - name: PORT
+              value: "8082"
+            - name: NODE_ENV
+              value: production
+            - name: K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: GEMINI_MODEL
+              value: gemini-2.5-flash
+            - name: GEMINI_MAX_OUTPUT_TOKENS
+              value: "1200"
+            - name: AI_ANALYSIS_WORD_LIMIT
+              value: "100"
+            - name: AI_ANALYSIS_MAX_CHARS
+              value: "1400"
+            - name: GEMINI_TEMPERATURE
+              value: "0.2"
+            - name: AI_ANALYSIS_ENABLED
+              value: "true"
+            - name: LOG_TAIL_LINES
+              value: "30"
+            - name: LOG_SINCE_SECONDS
+              value: "900"
+            - name: TELEGRAM_ALLOWED_ALERTS
+              value: API Down,High API Error Rate,Pod High Memory,Pod High CPU,Deployment Unavailable
+            - name: TELEGRAM_NOTIFY_LABEL
+              value: notify_telegram
+            - name: TELEGRAM_ALERT_COOLDOWN_SECONDS
+              value: "1800"
+            - name: TELEGRAM_INCLUDE_LOG_SAMPLE
+              value: "false"
+            - name: TELEGRAM_MESSAGE_MAX_CHARS
+              value: "2600"
+            - name: OUTBOUND_FETCH_TIMEOUT_MS
+              value: "20000"
+            - name: OUTBOUND_FETCH_ATTEMPTS
+              value: "3"
+            - name: GRAFANA_EXTERNAL_URL
+              value: http://localhost:4000
+          envFrom:
+            - secretRef:
+                name: alert-ai-secret
+                optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
