@@ -38,13 +38,13 @@ to Telegram.
 
 ## Demo Accounts
 
-| Username | Password | Role |
-|----------|----------|------|
-| admin | password123 | admin |
-| alice | password123 | customer |
-| bob | password123 | customer |
-| charlie | password123 | customer |
-| diana | password123 | customer |
+| Username | Password    | Role     |
+| -------- | ----------- | -------- |
+| admin    | password123 | admin    |
+| alice    | password123 | customer |
+| bob      | password123 | customer |
+| charlie  | password123 | customer |
+| diana    | password123 | customer |
 
 ## Local URLs
 
@@ -121,19 +121,19 @@ Clean up:
 
 ## Load Test Scenarios
 
-| Scenario | What it does | Grafana Dashboard |
-|----------|-------------|-------------------|
-| `normal` | Browse products, health checks, search, filter | Application Overview |
-| `auth` | Login, register, profile access | Application Overview (business events) |
-| `shopping` | Login → browse → checkout → view orders | Application + Database Overview |
-| `burst` | 80 concurrent product requests | Application Overview (spike) |
-| `error` | 100 simulated HTTP errors | Application Overview + Alert Overview |
-| `slow` | 20 parallel 3s-delay requests | Application Overview (latency) |
-| `cpu` | CPU-intensive computations | Kubernetes Pods (CPU) |
-| `memory` | 80MB memory allocations | Kubernetes Pods (RAM) |
-| `db` | Heavy DB reads + order writes | Database Overview |
-| `db-error` | Simulated failed DB queries | Database Overview + Alert Overview |
-| `all` | All scenarios sequentially | All dashboards |
+| Scenario   | What it does                                   | Grafana Dashboard                      |
+| ---------- | ---------------------------------------------- | -------------------------------------- |
+| `normal`   | Browse products, health checks, search, filter | Application Overview                   |
+| `auth`     | Login, register, profile access                | Application Overview (business events) |
+| `shopping` | Login → browse → checkout → view orders        | Application + Database Overview        |
+| `burst`    | 80 concurrent product requests                 | Application Overview (spike)           |
+| `error`    | 100 simulated HTTP errors                      | Application Overview + Alert Overview  |
+| `slow`     | 20 parallel 3s-delay requests                  | Application Overview (latency)         |
+| `cpu`      | CPU-intensive computations                     | Kubernetes Pods (CPU)                  |
+| `memory`   | 80MB memory allocations                        | Kubernetes Pods (RAM)                  |
+| `db`       | Heavy DB reads + order writes                  | Database Overview                      |
+| `db-error` | Simulated failed DB queries                    | Database Overview + Alert Overview     |
+| `all`      | All scenarios sequentially                     | All dashboards                         |
 
 ## What To Demo
 
@@ -184,4 +184,3 @@ Prometheus query for the Grafana DB failure panel:
 ```promql
 sum(rate(app_db_queries_total{success="false"}[5m])) or vector(0)
 ```
-# k8s-web-demo
